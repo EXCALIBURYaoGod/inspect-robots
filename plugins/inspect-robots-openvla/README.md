@@ -59,8 +59,9 @@ once.
 ## Image pipeline
 
 Matches upstream `get_vla_action()`: RGB frame → optional training-time center
-crop (`scale=0.9` ⇒ each side keeps `sqrt(0.9)` of its length, then resized
-back) → Hugging Face processor (final 224×224 resize). Pass `center_crop=True`
+crop (`scale=0.9` ⇒ each side keeps `sqrt(0.9)` of its length, then one bilinear
+resample straight to 224×224, as upstream's `crop_and_resize` does) → Hugging
+Face processor (rescale and normalise). Pass `center_crop=True`
 when the checkpoint was trained with that augmentation, e.g. the LIBERO
 fine-tunes.
 

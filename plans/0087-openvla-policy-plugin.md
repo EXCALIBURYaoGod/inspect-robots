@@ -62,13 +62,14 @@ mid-rollout goal change working without a reset.
 
 ## 5. Image pipeline
 
-`RGB` → (optional) center crop → processor's own 224 px resize. The crop keeps
-the configured `camera_height`/`camera_width` and re-expands the cropped square
-with Lanczos, mirroring upstream's `center_crop` before the processor runs.
+`RGB` → (optional) center crop → one bilinear resample to 224 px → processor
+rescales and normalises. The crop keeps `sqrt(scale)` of each side (upstream's
+box formula) and targets 224 px in a single resample, which is what upstream's
+`crop_and_resize` does.
 
 ## 6. Tests and CI
 
-38 tests, 100% line+branch coverage, `mypy --strict`, `ruff` — all without
+39 tests, 100% line+branch coverage, `mypy --strict`, `ruff` — all without
 `torch`. Covered: prompt construction, per-step re-observation, instruction
 rebinding on `reset()`, a mid-rollout goal change carried by
 `observation.instruction`, gripper mapping both directions, non-gripper dims

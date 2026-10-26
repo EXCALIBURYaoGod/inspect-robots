@@ -341,13 +341,39 @@ def test_missing_openvla_extra_names_the_install_command(
 # --------------------------------------------------------------------------- #
 
 
-def test_center_crop_keeps_the_original_resolution() -> None:
+def test_center_crop_resamples_to_the_processor_size() -> None:
     image = np.random.default_rng(0).integers(0, 255, (480, 640, 3), dtype=np.uint8)
 
     cropped = prepare_image(image, center_crop=True)
 
-    assert cropped.size == (640, 480)
+    assert cropped.size == (224, 224)
     assert not np.array_equal(np.asarray(cropped), image)
+
+
+def test_center_crop_matches_the_upstream_resample_spec() -> None:
+    # Reference: openvla/experiments/robot/openvla_utils.py:crop_and_resize --
+    # a box at (1 - sqrt(scale)) / 2 offsets on both axes, cropped in one go and
+    # resampled straight to 224 px (tf.image.crop_and_resize is bilinear).
+    scale = 0.9
+    side = math.sqrt(scale)
+    for width, height in ((640, 480), (96, 64), (97, 65)):
+        image = np.random.default_rng(width * height).integers(
+            0, 255, (height, width, 3), dtype=np.uint8
+        )
+        keep_w = max(1, round(width * side))
+        keep_h = max(1, round(height * side))
+        left = (width - keep_w) // 2
+        top = (height - keep_h) // 2
+        reference = (
+            Image.fromarray(image)
+            .crop((left, top, left + keep_w, top + keep_h))
+            .resize((224, 224), Image.Resampling.BILINEAR)
+        )
+
+        np.testing.assert_array_equal(
+            np.asarray(prepare_image(image, center_crop=True, crop_scale=scale)),
+            np.asarray(reference),
+        )
 
 
 def test_center_crop_keeps_sqrt_of_each_axis_on_non_square_frames() -> None:
@@ -366,7 +392,7 @@ def test_center_crop_keeps_sqrt_of_each_axis_on_non_square_frames() -> None:
 
         cropped = np.asarray(prepare_image(image, center_crop=True, crop_scale=scale))
 
-        assert cropped.shape == (height, width, 3)
+        assert cropped.shape == (224, 224, 3)
         # The white block fills the frame edge to edge, so both corners survive.
         assert cropped[0, 0, 0] > 200
         assert cropped[-1, -1, 0] > 200
