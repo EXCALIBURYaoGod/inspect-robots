@@ -36,14 +36,18 @@ with OpenVLAPolicy(unnorm_key="bridge_orig") as policy:
 | dim | meaning |
 |---|---|
 | 0–2 | end-effector position delta (m, base frame) |
-| 3–5 | end-effector rotation delta, axis-angle (rad) |
+| 3–5 | end-effector rotation delta, Euler XYZ `(roll, pitch, yaw)` (rad) |
 | 6 | gripper, binary: `+1` closed / `-1` open |
 
 Upstream OpenVLA emits the RLDS gripper convention (`0` closed, `1` open); the
 adapter flips it once at the boundary, so embodiments receive the robosuite-style
 `±1` value directly. `PolicyInfo.action_space` publishes
-`control_mode="eef_delta_pose"`, `rotation_repr="axis_angle"`,
+`control_mode="eef_delta_pose"`, `rotation_repr="euler_xyz"`,
 `gripper="binary"`, `frame="base"`, which is what `check_compatibility` checks.
+Base OpenVLA predicts BridgeData-style deltas, so rotation values are passed
+through as Euler angles: an axis-angle embodiment is rejected rather than
+silently misread. Non-finite model output raises `PolicyError` before the
+gripper is thresholded.
 
 ## Instructions
 

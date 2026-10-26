@@ -66,7 +66,7 @@ def test_declares_the_eef_action_contract() -> None:
 
     assert semantics is not None
     assert semantics.control_mode == "eef_delta_pose"
-    assert semantics.rotation_repr == "axis_angle"
+    assert semantics.rotation_repr == "euler_xyz"
     assert semantics.gripper == "binary"
     assert semantics.frame == "base"
     assert semantics.dim_labels == ("dx", "dy", "dz", "d_roll", "d_pitch", "d_yaw", "gripper")
@@ -286,6 +286,19 @@ def test_empty_action_is_rejected(
         policy.act(_observation())
 
 
+@pytest.mark.parametrize("bad", [np.nan, np.inf, -np.inf])
+def test_non_finite_action_is_rejected(
+    stub_model: StubOpenVLAModel, stub_processor: StubProcessor, bad: float
+) -> None:
+    stub_model.action = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, bad], dtype=np.float32)
+    policy = _policy(model=stub_model, processor=stub_processor)
+    policy.reset(_SCENE)
+
+    # NaN must not be thresholded into a valid gripper command.
+    with pytest.raises(PolicyError, match="non-finite"):
+        policy.act(_observation())
+
+
 def test_chunked_output_is_flattened(
     stub_model: StubOpenVLAModel, stub_processor: StubProcessor
 ) -> None:
@@ -394,7 +407,7 @@ def test_compatible_when_semantics_and_camera_match() -> None:
         _ArmEmbodiment(
             ActionSemantics(
                 control_mode="eef_delta_pose",
-                rotation_repr="axis_angle",
+                rotation_repr="euler_xyz",
                 gripper="binary",
                 frame="base",
             )
@@ -410,7 +423,7 @@ def test_position_only_embodiment_fails_fast() -> None:
         _ArmEmbodiment(
             ActionSemantics(
                 control_mode="eef_delta_pos",
-                rotation_repr="axis_angle",
+                rotation_repr="euler_xyz",
                 gripper="binary",
                 frame="base",
             )
@@ -429,7 +442,7 @@ def test_rotation_mismatch_fails_fast() -> None:
         _ArmEmbodiment(
             ActionSemantics(
                 control_mode="eef_delta_pose",
-                rotation_repr="euler_xyz",
+                rotation_repr="axis_angle",
                 gripper="binary",
                 frame="base",
             )

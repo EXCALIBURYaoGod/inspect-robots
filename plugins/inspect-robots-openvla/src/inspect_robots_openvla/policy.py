@@ -12,7 +12,7 @@ Action convention (published through ``PolicyInfo.action_space`` so
 dim     meaning
 ======  ===========================================================
 0..2    end-effector position delta (metres, base frame)
-3..5    end-effector rotation delta, axis-angle (radians)
+3..5    end-effector rotation delta, Euler XYZ (radians)
 6       gripper, binary: ``+1`` closed / ``-1`` open
 ======  ===========================================================
 
@@ -93,7 +93,7 @@ class OpenVLAPolicy:
                 shape=(_ACTION_DIM,),
                 semantics=ActionSemantics(
                     control_mode="eef_delta_pose",
-                    rotation_repr="axis_angle",
+                    rotation_repr="euler_xyz",
                     gripper="binary",
                     frame="base",
                     dim_labels=_DIM_LABELS,
@@ -230,6 +230,11 @@ class OpenVLAPolicy:
                 f"the {_ACTION_DIM}-D base-OpenVLA layout "
                 "[dx, dy, dz, d_roll, d_pitch, d_yaw, gripper]. "
                 "OpenVLA-OFT has a different action space and needs its own adapter."
+            )
+        if not np.isfinite(action).all():
+            raise PolicyError(
+                f"{self.info.name!r} returned a non-finite action {action.tolist()}; "
+                "refusing to threshold it into a gripper command"
             )
         # RLDS gripper (0 = closed, 1 = open) -> binary (+1 = closed, -1 = open).
         action[-1] = 1.0 if float(action[-1]) < 0.5 else -1.0
