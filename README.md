@@ -405,7 +405,7 @@ shipped from this repo as separate packages:
 - **[inspect-robots-openvla](plugins/inspect-robots-openvla/)**: run base
   [OpenVLA](https://github.com/openvla/openvla) 7B in the eval process, with no
   model server (`--policy openvla_local`). Weights load lazily on the first
-  `act()`; the adapter publishes the raw axis-angle `eef_delta_pos` contract.
+  `act()`; the adapter publishes the raw Euler `eef_delta_pose` contract.
 - **[inspect-robots-agent](plugins/inspect-robots-agent/)**: let a frontier
   LLM (Claude, GPT, anything behind an OpenAI-compatible API) drive any
   embodiment through tool calls, as a first-class policy. The same
