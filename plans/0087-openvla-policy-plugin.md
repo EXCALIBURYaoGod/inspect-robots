@@ -68,7 +68,7 @@ with Lanczos, mirroring upstream's `center_crop` before the processor runs.
 
 ## 6. Tests and CI
 
-37 tests, 100% line+branch coverage, `mypy --strict`, `ruff` — all without
+38 tests, 100% line+branch coverage, `mypy --strict`, `ruff` — all without
 `torch`. Covered: prompt construction, per-step re-observation, instruction
 rebinding on `reset()`, a mid-rollout goal change carried by
 `observation.instruction`, gripper mapping both directions, non-gripper dims

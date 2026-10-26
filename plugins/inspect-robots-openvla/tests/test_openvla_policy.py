@@ -6,6 +6,7 @@ in ``_stub_model.py`` reproduce the exact three call shapes the adapter uses.
 
 from __future__ import annotations
 
+import math
 import sys
 from typing import Any
 
@@ -347,6 +348,28 @@ def test_center_crop_keeps_the_original_resolution() -> None:
 
     assert cropped.size == (640, 480)
     assert not np.array_equal(np.asarray(cropped), image)
+
+
+def test_center_crop_keeps_sqrt_of_each_axis_on_non_square_frames() -> None:
+    # openvla/experiments/robot/openvla_utils.py:crop_and_resize builds its box
+    # from relative offsets (1 - sqrt(crop_scale)) / 2 per axis. Using 0.9 as a
+    # linear factor instead would leave black borders on the result.
+    scale = 0.9
+    side = math.sqrt(scale)
+    for width, height in ((640, 480), (96, 64), (97, 65)):
+        keep_w = max(1, round(width * side))
+        keep_h = max(1, round(height * side))
+        left = (width - keep_w) // 2
+        top = (height - keep_h) // 2
+        image = np.zeros((height, width, 3), dtype=np.uint8)
+        image[top : top + keep_h, left : left + keep_w] = 255
+
+        cropped = np.asarray(prepare_image(image, center_crop=True, crop_scale=scale))
+
+        assert cropped.shape == (height, width, 3)
+        # The white block fills the frame edge to edge, so both corners survive.
+        assert cropped[0, 0, 0] > 200
+        assert cropped[-1, -1, 0] > 200
 
 
 def test_center_crop_rejects_out_of_range_scale() -> None:
