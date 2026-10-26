@@ -92,7 +92,7 @@ class OpenVLAPolicy:
             action_space=Box(
                 shape=(_ACTION_DIM,),
                 semantics=ActionSemantics(
-                    control_mode="eef_delta_pos",
+                    control_mode="eef_delta_pose",
                     rotation_repr="axis_angle",
                     gripper="binary",
                     frame="base",
@@ -143,7 +143,11 @@ class OpenVLAPolicy:
             )
 
         processor, model = self._ensure_loaded()
-        prompt = _PROMPT.format(instruction=self._instruction.lower())
+        # ``Observation.instruction`` is the changing-goal channel; the scene
+        # instruction bound by reset() is the fallback for datasets that set it
+        # once.
+        instruction = observation.instruction or self._instruction
+        prompt = _PROMPT.format(instruction=instruction.lower())
         inputs = processor(prompt, prepare_image(image, center_crop=self.center_crop))
         if self._torch_device is not None:
             inputs = inputs.to(self._torch_device, dtype=self._dtype)

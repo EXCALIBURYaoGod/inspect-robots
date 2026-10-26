@@ -47,11 +47,15 @@ real mapping code with a duck-typed stub that records its calls:
 | 3–5 | end-effector rotation delta, axis-angle (rad) |
 | 6 | gripper, binary: `+1` closed / `-1` open |
 
-`PolicyInfo.action_space` publishes `control_mode="eef_delta_pos"`,
+`PolicyInfo.action_space` publishes `control_mode="eef_delta_pose"`,
 `rotation_repr="axis_angle"`, `gripper="binary"`, `frame="base"`. Upstream emits
 the RLDS gripper convention (`0` closed, `1` open), flipped once at the adapter
 boundary. An 8-D OpenVLA-OFT checkpoint is rejected with a message pointing at a
 dedicated adapter rather than silently truncated.
+
+Instructions follow `observation.instruction` when the observation supplies one,
+falling back to the instruction bound by `reset(scene)`; that keeps a
+mid-rollout goal change working without a reset.
 
 ## 5. Image pipeline
 
@@ -61,12 +65,13 @@ with Lanczos, mirroring upstream's `center_crop` before the processor runs.
 
 ## 6. Tests and CI
 
-32 tests, 100% line+branch coverage, `mypy --strict`, `ruff` — all without
+34 tests, 100% line+branch coverage, `mypy --strict`, `ruff` — all without
 `torch`. Covered: prompt construction, per-step re-observation, instruction
-rebinding on `reset()`, gripper mapping both directions, non-gripper dims passing
-through untouched, missing/empty/8-D actions, missing camera, the
-`[openvla]`-extra error path, closed-policy calls, and a semantic mismatch that
-must raise `CompatibilityError`.
+rebinding on `reset()`, a mid-rollout goal change carried by
+`observation.instruction`, gripper mapping both directions, non-gripper dims
+passing through untouched, missing/empty/8-D actions, missing camera, the
+`[openvla]`-extra error path, closed-policy calls, and semantic mismatches
+(rotation and position-only embodiments) that must raise `CompatibilityError`.
 
 `.github/workflows/ci.yml` gains a `plugin-openvla` job cloned from
 `plugin-xpolicylab`, wired into `ci-ok.needs`; `.github/workflows/release.yml`

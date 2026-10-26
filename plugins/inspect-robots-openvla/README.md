@@ -42,8 +42,15 @@ with OpenVLAPolicy(unnorm_key="bridge_orig") as policy:
 Upstream OpenVLA emits the RLDS gripper convention (`0` closed, `1` open); the
 adapter flips it once at the boundary, so embodiments receive the robosuite-style
 `±1` value directly. `PolicyInfo.action_space` publishes
-`control_mode="eef_delta_pos"`, `rotation_repr="axis_angle"`,
+`control_mode="eef_delta_pose"`, `rotation_repr="axis_angle"`,
 `gripper="binary"`, `frame="base"`, which is what `check_compatibility` checks.
+
+## Instructions
+
+`act()` prompts the model with `observation.instruction` when the observation
+carries one, so a scene whose goal changes mid-rollout is followed; the
+instruction bound by `reset(scene)` is the fallback for datasets that set it
+once.
 
 ## Image pipeline
 

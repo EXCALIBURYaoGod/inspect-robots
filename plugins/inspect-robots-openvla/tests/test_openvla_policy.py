@@ -34,9 +34,11 @@ _SCENE = Scene(id="s0", instruction="Pick up the cube")
 _CAMERA = "agentview"
 
 
-def _observation(*, camera: str = _CAMERA) -> Observation:
+def _observation(
+    *, camera: str = _CAMERA, instruction: str | None = _SCENE.instruction
+) -> Observation:
     image = np.zeros((480, 640, 3), dtype=np.uint8)
-    return Observation(images={camera: image}, instruction=_SCENE.instruction)
+    return Observation(images={camera: image}, instruction=instruction)
 
 
 def _policy(*, model: StubOpenVLAModel, processor: StubProcessor, **kwargs: Any) -> OpenVLAPolicy:
@@ -63,7 +65,7 @@ def test_declares_the_eef_action_contract() -> None:
     semantics = OpenVLAPolicy().info.action_space.semantics
 
     assert semantics is not None
-    assert semantics.control_mode == "eef_delta_pos"
+    assert semantics.control_mode == "eef_delta_pose"
     assert semantics.rotation_repr == "axis_angle"
     assert semantics.gripper == "binary"
     assert semantics.frame == "base"
@@ -181,13 +183,28 @@ def test_reset_rebinds_the_instruction_to_the_new_scene(
 ) -> None:
     policy = _policy(model=stub_model, processor=stub_processor)
     policy.reset(_SCENE)
-    policy.act(_observation())
+    policy.act(_observation(instruction=None))
 
     policy.reset(Scene(id="s1", instruction="Open the drawer"))
-    policy.act(_observation())
+    policy.act(_observation(instruction=None))
 
     assert "pick up the cube" in stub_processor.calls[0][0]
     assert "open the drawer" in stub_processor.calls[1][0]
+
+
+def test_observation_instruction_overrides_the_scene_instruction(
+    stub_model: StubOpenVLAModel, stub_processor: StubProcessor
+) -> None:
+    policy = _policy(model=stub_model, processor=stub_processor)
+    policy.reset(_SCENE)
+
+    policy.act(_observation(instruction="Open the drawer"))
+    policy.act(_observation(instruction="Stack the blocks"))
+
+    # The goal moved twice without reset() in between; the model must follow
+    # the observation, not the stale scene instruction.
+    assert "open the drawer" in stub_processor.calls[0][0]
+    assert "stack the blocks" in stub_processor.calls[1][0]
 
 
 def test_three_consecutive_acts_are_independent(
@@ -376,7 +393,7 @@ def test_compatible_when_semantics_and_camera_match() -> None:
         OpenVLAPolicy(),
         _ArmEmbodiment(
             ActionSemantics(
-                control_mode="eef_delta_pos",
+                control_mode="eef_delta_pose",
                 rotation_repr="axis_angle",
                 gripper="binary",
                 frame="base",
@@ -387,12 +404,31 @@ def test_compatible_when_semantics_and_camera_match() -> None:
     assert report.ok, report.errors
 
 
-def test_rotation_mismatch_fails_fast() -> None:
+def test_position_only_embodiment_fails_fast() -> None:
     report = check_compatibility(
         OpenVLAPolicy(),
         _ArmEmbodiment(
             ActionSemantics(
                 control_mode="eef_delta_pos",
+                rotation_repr="axis_angle",
+                gripper="binary",
+                frame="base",
+            )
+        ),
+    )
+
+    assert not report.ok
+    assert "control_mode" in {issue.code for issue in report.errors}
+    with pytest.raises(CompatibilityError):
+        report.raise_for_errors()
+
+
+def test_rotation_mismatch_fails_fast() -> None:
+    report = check_compatibility(
+        OpenVLAPolicy(),
+        _ArmEmbodiment(
+            ActionSemantics(
+                control_mode="eef_delta_pose",
                 rotation_repr="euler_xyz",
                 gripper="binary",
                 frame="base",
